@@ -19,6 +19,25 @@ let serialPortName = null;
 app.use(cors());
 app.use(express.json());
 
+// -------- Health Check --------
+app.get("/", (req, res) => {
+  res.json({
+    ok: true,
+    message: "ECG Monitoring Backend API running",
+    version: "1.0.0",
+    endpoints: [
+      "GET /api/ports - List available serial ports",
+      "POST /api/connect - Connect to serial port",
+      "GET /api/status - Get connection status",
+      "POST /api/cmd - Send command to device"
+    ]
+  });
+});
+
+app.get("/health", (req, res) => {
+  res.json({ ok: true, status: "running" });
+});
+
 // -------- API: listar puertos --------
 app.get("/api/ports", async (req, res) => {
   try {

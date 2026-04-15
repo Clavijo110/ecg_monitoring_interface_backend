@@ -26,8 +26,30 @@ let serialPort = null;
 let parser = null;
 let serialPortName = null;
 
-app.use(cors());
+// Configurar CORS más explícitamente
+const corsOptions = {
+  origin: "*",
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: false,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// Agregar headers CORS manualmente como fallback
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  
+  next();
+});
 
 // -------- Health Check --------
 app.get("/", (req, res) => {
@@ -179,11 +201,21 @@ app.post("/api/connect", async (req, res) => {
 
 // -------- API: estado serial --------
 app.get("/api/status", (req, res) => {
-  res.json({
-    ok: true,
-    connected: !!(serialPort && serialPort.isOpen),
-    port: serialPortName
-  });
+  try {
+    res.json({
+      ok: true,
+      connected: !!(serialPort && serialPort.isOpen),
+      port: serialPortName || null
+    });
+  } catch (error) {
+    console.error("[API] Error en /api/status:", error);
+    res.status(200).json({
+      ok: true,
+      connected: false,
+      port: null,
+      error: error.message
+    });
+  }
 });
 
 // -------- API: enviar comando al ESP32 --------
@@ -316,6 +348,19 @@ io.on("connection", (socket) => {
   });
 });
 
+// -------- Error Handlers --------
+app.use((err, req, res, next) => {
+  console.error("[ERROR] Unhandled error:", err);
+  res.status(500).json({
+    ok: false,
+    error: err.message || "Internal Server Error"
+  });
+});
+
+server.on("error", (err) => {
+  console.error("[SERVER ERROR]", err);
+});
+
 server.listen(PORT, () => {
-  console.log(`[APP] Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`[APP] Servidor corriendo en puerto ${PORT}`);
 });

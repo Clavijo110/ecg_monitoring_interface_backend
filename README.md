@@ -15,19 +15,17 @@ npm install
 
 ## Ejecución
 
-### Desarrollo local
+### Desarrollo local (con auto-reinicio)
 ```bash
-npm start
-# O con nodemon:
 npm run dev
 ```
 
-El servidor estará en `http://localhost:3001`
-
-### Producción
+### Producción (o sin nodemon)
 ```bash
-node server.js
+npm start
 ```
+
+El servidor estará disponible en `http://localhost:3001` (o en el puerto definido por `$PORT`)
 
 ## Variables de Entorno
 

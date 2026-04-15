@@ -8,7 +8,17 @@ const { ReadlineParser } = require("@serialport/parser-readline");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+
+// Configurar Socket.io con CORS explícito
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type"],
+    credentials: false
+  },
+  transports: ["websocket", "polling"]
+});
 
 const PORT = process.env.PORT || 3001;
 
@@ -41,7 +51,15 @@ app.get("/health", (req, res) => {
 // -------- API: listar puertos --------
 app.get("/api/ports", async (req, res) => {
   try {
-    const ports = await SerialPort.list();
+    let ports = [];
+    
+    try {
+      ports = await SerialPort.list();
+    } catch (serialError) {
+      // En entornos sin acceso a puertos seriales (como Render), devolver array vacío
+      console.warn("[SERIAL] No se pudo listar puertos (esperado en cloud):", serialError.message);
+      ports = [];
+    }
 
     const formatted = ports.map((p) => ({
       path: p.path,
@@ -52,12 +70,14 @@ app.get("/api/ports", async (req, res) => {
 
     res.json({
       ok: true,
-      ports: formatted
+      ports: formatted,
+      note: ports.length === 0 ? "No serial ports available in this environment" : undefined
     });
   } catch (error) {
     console.error("[SERIAL] Error listando puertos:", error);
-    res.status(500).json({
-      ok: false,
+    res.status(200).json({
+      ok: true,
+      ports: [],
       error: error.message
     });
   }
@@ -140,17 +160,19 @@ app.post("/api/connect", async (req, res) => {
       message: `Conectado a ${portPath}`
     });
   } catch (error) {
-    console.error("[SERIAL] Error conectando:", error);
+    console.error("[SERIAL] Error conectando:", error.message);
 
+    // En Render/cloud, los puertos seriales no existen. Devolver respuesta válida pero informativa.
     io.emit("serial_status", {
       connected: false,
       port: null,
       error: error.message
     });
 
-    res.status(500).json({
+    res.status(200).json({
       ok: false,
-      error: error.message
+      error: error.message,
+      note: "Serial port not available in this environment"
     });
   }
 });
